@@ -1,0 +1,58 @@
+# Data-Driven Customer Profiling  
+### Financial Behavior Analysis for Personalized Banking Benefits  
+
+
+
+##  Project Overview  
+This project focuses on building a data-driven system to better understand customer behavior in the banking domain.  
+
+Instead of treating all customers the same, the system analyzes different aspects such as:
+- Spending habits  
+- Response to offers  
+- Fraud risk patterns  
+- Lifestyle and brand preferences  
+
+Using machine learning, customers are grouped into meaningful segments like **VIP, Loyal, Impulsive, Risky, and Standard**, helping support better decision-making in marketing and risk management.
+
+
+
+##  Technologies Used  
+- **Python**  
+- **Pandas, NumPy** – Data processing  
+- **Scikit-learn** – Preprocessing and evaluation  
+- **XGBoost** – Machine learning models  
+- **Matplotlib, Seaborn** – Visualization  
+- **Streamlit** – Interactive dashboard  
+- **Joblib** – Model saving  
+
+
+
+## Project Workflow  
+1. Data preprocessing and cleaning  
+2. Feature engineering  
+3. Model development (4 models):  
+   - Reward Model  
+   - Psychology Model  
+   - Fraud Model  
+   - Brand Affinity Model  
+4. Customer scoring and segmentation  
+5. Visualization and analysis  
+6. Dashboard development (Streamlit)  
+
+
+## Key Features  
+- Customer behavior analysis using ML models  
+- Fraud risk estimation  
+- Reward responsiveness prediction  
+- Brand affinity scoring  
+- Rule-based customer segmentation  
+- Customer ranking system  
+- Automated report generation (CSV + charts)  
+- Interactive dashboard  
+
+
+## How to Run  
+
+### 1. Install dependencies
+```bash
+pip install pandas numpy scikit-learn xgboost matplotlib seaborn streamlit joblib
