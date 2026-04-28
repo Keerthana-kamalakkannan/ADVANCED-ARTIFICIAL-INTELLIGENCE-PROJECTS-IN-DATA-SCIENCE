@@ -1,1 +1,308 @@
 
+# 1. Imported required libraries(we have used sklearn for model selection, normalization(scaling) and for generating report; matplotlib and seaborn is for visualization)
+# We have used minmax scaling in our model because of the scoring system and the decimal threshold. So, to have a fixed rage 0 to 1, we have chosen minmaxscaler.
+
+import pandas as pd
+import numpy as np
+import os
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import accuracy_score, classification_report
+
+from xgboost import XGBClassifier
+import matplotlib.pyplot as plt
+%matplotlib inline
+import joblib
+import seaborn as sns
+
+
+# 2. Feature Importance Plot
+# We have defined the features here to call it in the visualization part by extracting the feature importance from the trained model.
+
+
+def plot_importance(model, feature_names, title, filename):
+    importance = model.feature_importances_
+    idx = np.argsort(importance)
+
+    plt.figure()
+    plt.barh(np.array(feature_names)[idx], importance[idx])
+    plt.title(title)
+    plt.xlabel("Importance")
+    plt.tight_layout()
+    plt.savefig(filename)
+    plt.close()
+
+    print(f"Saved: {filename}")
+
+
+# 3. Load & Clean Data
+# Data is loaded and cleaned(removed white space, dropped duplicates, replaced "%" symbol with blank space, all the values are updated to numeric)
+
+df = pd.read_csv("BANKING_DATASET.csv")
+df.columns = df.columns.str.strip()
+
+print("Initial Shape:", df.shape)
+print("\nAvailable Columns:\n", list(df.columns))
+
+df.drop_duplicates(inplace=True)
+df = df.replace('%', '', regex=True)
+df = df.apply(pd.to_numeric, errors='coerce')
+df.fillna(df.mean(numeric_only=True), inplace=True)
+
+
+
+# 4. REWARD MODEL
+# (used required columns from the data file to compute and analyze reward behaviour of the customer i.e., likely to respond strongly to discounts, cashback, and offers)
+# (We are manually combining the features into a weighted score based on priority)
+
+reward_cols = [
+    "discount_usage_ratio",
+    "cashback_earned",
+    "offer_transaction_ratio",
+    "seasonal_spike_index"
+]
+
+df_reward = df.copy()
+
+df_reward["reward_score"] = (
+    df_reward["discount_usage_ratio"] * 0.3 +
+    df_reward["cashback_earned"] * 0.2 +
+    df_reward["offer_transaction_ratio"] * 0.4 +
+    df_reward["seasonal_spike_index"] * 0.1
+)
+
+df_reward["Reward_Behaviour"] = (df_reward["reward_score"] > 0.5).astype(int)
+
+X = df_reward[reward_cols]
+y = df_reward["Reward_Behaviour"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42
+)
+
+scaler_reward = MinMaxScaler()
+X_train = scaler_reward.fit_transform(X_train)
+X_test = scaler_reward.transform(X_test)
+
+model_reward = XGBClassifier(n_estimators=150, learning_rate=0.1, max_depth=4,
+                             random_state=42, eval_metric='logloss')
+
+model_reward.fit(X_train, y_train)
+
+y_pred = model_reward.predict(X_test)
+
+print("\n--- Reward Model ---")
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+plot_importance(model_reward, reward_cols, "Reward Feature Importance", "reward_importance.png")
+
+joblib.dump(model_reward, "reward_model.pkl")
+joblib.dump(scaler_reward, "reward_scaler.pkl")
+
+
+
+# 5. PSYCHOLOGY MODEL 
+# We have classified customer’s behavioral risk profile based on psychological spending traits.
+# impulse_purchase_score - how likely a customer buys without planning
+# loss_aversion_index - sensitivity to losing money (can drive cautious or reactive behavior)
+# financial_stress_score - indicates financial pressure
+# recency_spend_bias - tendency to spend more recently (short-term bias)
+
+psy_cols = [
+    "impulse_purchase_score",
+    "loss_aversion_index",
+    "financial_stress_score",
+    "recency_spend_bias"
+]
+
+df_psy = df.copy()
+
+df_psy["behaviour_risk_score"] = df_psy[psy_cols].mean(axis=1)
+df_psy["Behaviour_Type"] = (df_psy["behaviour_risk_score"] > 0.5).astype(int)
+
+X = df_psy[psy_cols]
+y = df_psy["Behaviour_Type"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42
+)
+
+scaler_psy = MinMaxScaler()
+X_train = scaler_psy.fit_transform(X_train)
+X_test = scaler_psy.transform(X_test)
+
+model_psy = XGBClassifier(n_estimators=150, learning_rate=0.1, max_depth=4,
+                          random_state=42, eval_metric='logloss')
+
+model_psy.fit(X_train, y_train)
+
+y_pred = model_psy.predict(X_test)
+
+print("\n--- Psychology Model ---")
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+plot_importance(model_psy, psy_cols, "Psychology Feature Importance", "psychology_importance.png")
+
+joblib.dump(model_psy, "psychology_model.pkl")
+joblib.dump(scaler_psy, "psychology_scaler.pkl")
+
+
+
+# 6. FRAUD MODEL 
+# We have estimated how risky a customer’s transactions are and classify them into fraud-prone vs normal
+# transaction_amount_zscore - how unusual the transaction amount is compared to normal behavior
+# location_change_flag - sudden change in location (e.g., different city/country)
+# unusual_time_flag - transactions at odd hours
+# velocity_transactions_1hr - too many transactions in a short time
+# is_anomalous_transaction - precomputed anomaly indicator
+
+fraud_cols = [
+    "transaction_amount_zscore",
+    "location_change_flag",
+    "unusual_time_flag",
+    "velocity_transactions_1hr",
+    "is_anomalous_transaction"
+]
+
+df_fraud = df.copy()
+
+df_fraud["risk_score"] = df_fraud[fraud_cols].mean(axis=1)
+df_fraud["Fraud_Risk"] = (df_fraud["risk_score"] > 0.6).astype(int)
+
+X = df_fraud[fraud_cols]
+y = df_fraud["Fraud_Risk"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42
+)
+
+scaler_fraud = MinMaxScaler()
+X_train = scaler_fraud.fit_transform(X_train)
+X_test = scaler_fraud.transform(X_test)
+
+model_fraud = XGBClassifier(n_estimators=200, learning_rate=0.1, max_depth=5,
+                            random_state=42, eval_metric='logloss')
+
+model_fraud.fit(X_train, y_train)
+
+y_pred = model_fraud.predict(X_test)
+
+print("\n--- Fraud Model ---")
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+plot_importance(model_fraud, fraud_cols, "Fraud Feature Importance", "fraud_importance.png")
+
+joblib.dump(model_fraud, "fraud_model.pkl")
+joblib.dump(scaler_fraud, "fraud_scaler.pkl")
+
+
+
+# 7. BRAND MODEL 
+# We are identifying how likely a customer is to respond positively to premium offers, lifestyle upgrades, and brand-driven marketing
+# reward_seeking_score - interest in perks, loyalty programs, benefits
+# lifestyle_upgrade_index - tendency to improve lifestyle (e.g., premium services)
+# category_spend_ratio_luxury - spending on luxury categories
+# travel_frequency - proxy for lifestyle and affluence
+
+brand_cols = [
+    "reward_seeking_score",
+    "lifestyle_upgrade_index",
+    "category_spend_ratio_luxury",
+    "travel_frequency"
+]
+
+df_brand = df.copy()
+
+df_brand["brand_affinity_score"] = df_brand[brand_cols].mean(axis=1)
+df_brand["Offer_Response"] = (df_brand["brand_affinity_score"] > 0.55).astype(int)
+
+X = df_brand[brand_cols]
+y = df_brand["Offer_Response"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42
+)
+
+scaler_brand = MinMaxScaler()
+X_train = scaler_brand.fit_transform(X_train)
+X_test = scaler_brand.transform(X_test)
+
+model_brand = XGBClassifier(n_estimators=200, learning_rate=0.1, max_depth=5,
+                            random_state=42, eval_metric='logloss')
+
+model_brand.fit(X_train, y_train)
+
+y_pred = model_brand.predict(X_test)
+
+print("\n--- Brand Model ---")
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+plot_importance(model_brand, brand_cols, "Brand Feature Importance", "brand_importance.png")
+
+joblib.dump(model_brand, "brand_model.pkl")
+joblib.dump(scaler_brand, "brand_scaler.pkl")
+
+
+
+# 8. CORRELATION + VISUALIZATION
+
+print("\n--- Generating Correlation & Visuals ---")
+
+df_final = df.copy()
+
+df_final["reward_prob"] = model_reward.predict_proba(
+    scaler_reward.transform(df[reward_cols])
+)[:, 1]
+
+df_final["psychology_prob"] = model_psy.predict_proba(
+    scaler_psy.transform(df[psy_cols])
+)[:, 1]
+
+df_final["fraud_prob"] = model_fraud.predict_proba(
+    scaler_fraud.transform(df[fraud_cols])
+)[:, 1]
+
+df_final["brand_prob"] = model_brand.predict_proba(
+    scaler_brand.transform(df[brand_cols])
+)[:, 1]
+
+corr_df = df_final[[
+    "reward_prob",
+    "psychology_prob",
+    "fraud_prob",
+    "brand_prob"
+]]
+
+plt.figure(figsize=(8,5))
+sns.heatmap(corr_df.corr(), annot=True, cmap="coolwarm", vmin=-1, vmax=1)
+plt.title("Model Correlation Heatmap")
+plt.tight_layout()
+plt.savefig("model_correlation_heatmap.png")
+plt.show()
+
+corr_df.mean().plot(kind="bar", figsize=(7,4), title="Average Model Scores")
+plt.ylabel("Score")
+plt.tight_layout()
+plt.savefig("model_contribution.png")
+plt.show()
+
+plt.figure(figsize=(7,5))
+plt.scatter(df_final["fraud_prob"], df_final["brand_prob"], alpha=0.4)
+plt.xlabel("Fraud Risk")
+plt.ylabel("Brand Affinity")
+plt.title("Risk vs Value Distribution")
+plt.tight_layout()
+plt.savefig("risk_vs_value.png")
+plt.show()
+
+print("\nAll models + visualizations completed!")
+
+
+
+
+
