@@ -54,7 +54,7 @@ HOW TO RUN
 
 Step 1:
 Run the main Python file:
-   python main.py
+   python train_model.py
 
 This will:
 - Load dataset
@@ -109,16 +109,29 @@ PROJECT STRUCTURE
 project-folder/
 │
 ├── data/
-│   └── BANKING_DATASET.csv
+│   └── encoded_dataset.csv
+│   └── users.csv                  (Store users data)
 │
 ├── models/
-│   ├── reward_model.pkl
-│   ├── psychology_model.pkl
-│   ├── fraud_model.pkl
+│   ├── brand_importance.png
 │   ├── brand_model.pkl
+│   ├── brand_scaler.pkl
+│   ├── fraud_importance.png
+│   ├── fraud_model.pkl
+│   ├── fraud_scaler.pkl
+│   ├── model_contribution.png
+│   ├── model_correlation_heatmap.png
+│   ├── psychology_importance.png
+│   ├── psychology_model.pkl
+│   ├── psychology_scaler.pkl
+│   ├── reward_importance.png
+│   ├── reward_model.pkl
+│   ├── reward_scaler.pkl
+│   ├── risk_vs_value.png
+
 │
 ├── app.py                  (Streamlit dashboard)
-├── main.py                (Main execution file)
+├── train_model.py                (Main execution file)
 ├── requirements.txt
 ├── README.md
 │
@@ -130,11 +143,17 @@ project-folder/
 
 OUTPUTS
 
+Train_model.py
 - Customer scores (Reward, Psychology, Fraud, Brand)
 - Customer segmentation (VIP, Loyal, Impulsive, Risky, Standard)
 - Ranking system
 - CSV reports for customers
 - Visual charts (bar charts, scatter plots, heatmaps)
+
+app.py
+- Role-based login system (Admin vs Analyst access)
+- Bank-wide analytics dashboard with customer demographics and risk insights
+- Individual customer profiling with behavioural scores, segment classification and rankings
 
 ------------------------------------------------------------
 
